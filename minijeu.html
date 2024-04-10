@@ -1,0 +1,160 @@
+<!DOCTYPE html><html lang="fr"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>go</title>
+<style>
+	body {
+		user-select: none;
+		-khtml-user-select: none;
+		-o-user-select: none;
+		-moz-user-select: -moz-none;
+		-webkit-user-select: none;
+		background: #333;
+		margin: 0
+	}
+
+	canvas {
+		width: 640px;
+		height: 640px;
+		image-rendering: optimizeSpeed;
+		image-rendering: -o-crisp-edges;
+		image-rendering: -webkit-optimize-contrast;
+		-ms-interpolation-mode: nearest-neighbor;
+	}
+</style>
+<script>
+    // 20201031
+	let canv = { c: null, d: null },
+
+    imgs = [0, 0], // a, ok,
+
+    pts = 0,
+
+    saut = [0, 0, 0, 0], // bool, val
+
+    position_x = [0, 0], // x_de (-32 à 32), x_a
+
+    sons = [0, 0],
+
+    douleur = 0,
+
+    // -----
+
+    fplay = (a, c, p = 0) => { c = c == null ? 0 : c, sons[a].loop = c, sons[a].ended ? 0 : sons[a].pause(), fsetp(a, p), sons[a].play() },
+    fpaus = (a) => { sons[a].pause() },
+    fsetp = (a, b) => {
+        b = b == null ? 0 : b;
+        sons[a].currentTime = b
+    },
+    fdispo = (a) => { return sons[a].ended || sons[a].paused },
+
+
+    // -----
+
+
+
+
+    f_add_img = (titr) => {
+        let t = imgs.length;
+        imgs[t] = new Image();
+        imgs[t].src = titr;
+        imgs[t].onload = () => {
+            imgs[1]++;
+            imgs[1] >= imgs[0] ? init_sons() : 0
+        };
+        imgs[0]++
+    },
+
+    f_add_son = (titr) => {
+        let t = sons.length;
+        sons[t] = new Audio();
+        sons[t].src = titr;
+        sons[t].onloadeddata = () => {
+            sons[1]++;
+            sons[1] >= sons[0] ? draw() : 0
+        };
+        sons[0]++
+    },
+
+    init = () => {
+        f_add_img("tutur_keur.png"); //2
+        f_add_img("tutur_perso.png"); //3
+        f_add_img("tutur_perso_larme.png"); //4
+        f_add_img("tutur_ouille.png"); //5
+    },
+
+    init_sons = () => {
+        f_add_son("chruitch.ogg"); //2
+
+        canv.c = document['createElement']('canvas');
+        canv.c['width'] = canv.c['height'] = 64;
+        canv.d = canv.c['getContext']('2d');
+        document.body.appendChild(canv.c);
+
+        canv.c.addEventListener("mousedown", onclk, 0);
+    },
+
+    draw = () => {
+
+        saut[0] > 0 ? (
+                saut[1] += 1 + saut[0],
+                saut[1] < 90 ? 0 : saut[1] += 2 + saut[0],
+                saut[1] < 180 ?
+                0 :
+                sol_touched() // touchage de sol
+            ) : saut[1] != 0 ?
+            saut[1] = 0 :
+            0;
+
+        saut[2] > 0 ? (
+            saut[3] += 0.5,
+            saut[3] < 12 ? 0 : (saut[3] = 0, saut[2] = 0)
+        ) : 0;
+
+        // gestion de la douleur
+        douleur -= 0.001;
+        douleur < 0 ? douleur = 0 : 0;
+
+        // fond
+        canv.d.fillStyle = "#08f";
+        canv.d.fillRect(0, 0, 64, 64);
+
+        // drawing
+        canv.d.font = "16px consolas";
+        canv.d.fillStyle = "rgba(255, 255, 255, 1)";
+        canv.d.textAlign = "center";
+
+        // imgs
+        canv.d.drawImage(imgs[2], 0, 0, 64, 64, 0, -Math.sin(saut[3] * 2) * ((4 + saut[0] * 4) / Math.max(2, saut[3])), 64, 64);
+        canv.d.drawImage(imgs[3], 0, 0, 64, 64, (position_x[1] * (saut[1] / 180)) + (position_x[0] * (1 - (saut[1] / 180))), 12 - Math.sin(saut[1] * 0.0174532) * 54, 64, 64);
+        canv.d.globalAlpha = Math.min(1, douleur);
+        canv.d.drawImage(imgs[4], 0, 0, 64, 64, (position_x[1] * (saut[1] / 180)) + (position_x[0] * (1 - (saut[1] / 180))), 12 - Math.sin(saut[1] * 0.0174532) * 54, 64, 64);
+        canv.d.globalAlpha = Math.max(0, Math.min(1, douleur - 1));
+        canv.d.drawImage(imgs[5], 0, 0, 64, 64, (position_x[1] * (saut[1] / 180)) + (position_x[0] * (1 - (saut[1] / 180))), 12 - Math.sin(saut[1] * 0.0174532) * 54, 64, 64);
+        canv.d.globalAlpha = 1;
+
+        // over
+        canv.d.fillText(pts, 32, 60);
+        canv.d.fillText(pts, 32, 60);
+
+        requestAnimationFrame(draw);
+    },
+
+    sol_touched = () => {
+        fplay(2, 0, 0.5);
+        saut[1] -= 180;
+        saut[0]--;
+        saut[2] = 1;
+        saut[3] = 0;
+        position_x[0] = position_x[1];
+        position_x[1] = ~~(Math.random() * 38 - 14);
+        douleur += (3 - douleur) * 0.1;
+        douleur > 2 ? douleur = 2 : 0;
+    },
+
+    onclk = (a) => {
+        a.which == 1 ? (pts++, saut[0] < 1 ? saut[1] = 0 : 0, saut[0]++) : 0
+    }
+</script>
+</head><body onload="init()">
+
+</body></html>
